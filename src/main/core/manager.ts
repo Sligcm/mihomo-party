@@ -141,12 +141,24 @@ export const getMihomoIpcPath = (): string => {
 interface CoreConfig {
   corePath: string
   workDir: string
+  safePath?: string
   ipcPath: string
   logLevel: LogLevel
   tunEnabled: boolean
   autoSetDNS: boolean
   cpuPriority: string
   detached: boolean
+}
+
+function buildCoreEnv(safePath?: string): NodeJS.ProcessEnv {
+  const env = { ...process.env }
+  if (!safePath) return env
+
+  const existingSafePaths = env.SAFE_PATHS?.split(path.delimiter).filter(Boolean) ?? []
+  env.SAFE_PATHS = existingSafePaths.includes(safePath)
+    ? existingSafePaths.join(path.delimiter)
+    : [...existingSafePaths, safePath].join(path.delimiter)
+  return env
 }
 
 // 准备核心配置
@@ -208,6 +220,7 @@ async function prepareCore(detached: boolean, skipStop = false): Promise<CoreCon
   return {
     corePath: mihomoCorePath(core),
     workDir: diffWorkDir ? mihomoProfileWorkDir(current) : mihomoWorkDir(),
+    safePath: diffWorkDir ? mihomoWorkDir() : undefined,
     ipcPath,
     logLevel,
     tunEnabled: tun?.enable ?? false,
@@ -219,11 +232,12 @@ async function prepareCore(detached: boolean, skipStop = false): Promise<CoreCon
 
 // 启动核心进程
 function spawnCoreProcess(config: CoreConfig): ChildProcess {
-  const { corePath, workDir, ipcPath, cpuPriority, detached } = config
+  const { corePath, workDir, safePath, ipcPath, cpuPriority, detached } = config
 
   const proc = spawn(corePath, ['-d', workDir, ctlParam, ipcPath], {
     detached,
-    stdio: detached ? 'ignore' : undefined
+    stdio: detached ? 'ignore' : undefined,
+    env: buildCoreEnv(safePath)
   })
 
   if (process.platform === 'win32' && proc.pid) {
