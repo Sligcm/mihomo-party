@@ -76,7 +76,8 @@ const GeneralConfig: React.FC = () => {
     appTheme = 'system',
     language = 'zh-CN',
     triggerMainWindowBehavior = 'show',
-    hideConnectionCardWave = false
+    hideConnectionCardWave = false,
+    disableAppLog = false
   } = appConfig || {}
 
   useEffect(() => {
@@ -540,6 +541,15 @@ const GeneralConfig: React.FC = () => {
             isSelected={disableAnimations}
             onValueChange={async (v) => {
               await patchAppConfig({ disableAnimations: v })
+            }}
+          />
+        </SettingItem>
+        <SettingItem title={t('settings.disableAppLog')} divider>
+          <Switch
+            size="sm"
+            isSelected={disableAppLog}
+            onValueChange={async (v) => {
+              await patchAppConfig({ disableAppLog: v })
             }}
           />
         </SettingItem>

@@ -320,6 +320,7 @@ interface IAppConfig {
   sysProxy: ISysProxyConfig
   maxLogDays: number
   maxLogFileSize: number
+  disableAppLog?: boolean
   userAgent?: string
   delayTestConcurrency?: number
   delayTestUrl?: string

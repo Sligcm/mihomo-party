@@ -16,6 +16,7 @@ export const defaultConfig: IAppConfig = {
   customTrayIcon: '',
   maxLogDays: 7,
   maxLogFileSize: 10,
+  disableAppLog: false,
   proxyCols: 'auto',
   connectionDirection: 'asc',
   connectionOrderBy: 'time',
