@@ -2,6 +2,22 @@ type OutboundMode = 'rule' | 'global' | 'direct'
 type LogLevel = 'info' | 'debug' | 'warning' | 'error' | 'silent'
 type SysProxyMode = 'auto' | 'manual'
 type CardStatus = 'col-span-2' | 'col-span-1' | 'hidden'
+type SiderCardKey =
+  | 'sysproxy'
+  | 'tun'
+  | 'profile'
+  | 'proxy'
+  | 'rule'
+  | 'resource'
+  | 'override'
+  | 'connection'
+  | 'mihomo'
+  | 'dns'
+  | 'sniff'
+  | 'log'
+  | 'substore'
+  | 'network'
+  | 'usage'
 type AppTheme = 'system' | 'light' | 'dark'
 type MihomoGroupType = 'Selector' | 'URLTest' | 'Fallback' | 'LoadBalance' | 'Relay'
 type Priority =
@@ -310,6 +326,7 @@ interface IAppConfig {
   showCurrentProxyInTray: boolean
   enableTrafficLogger?: boolean
   siderOrder: string[]
+  lastSelectedSiderCard?: SiderCardKey
   siderWidth: number
   appTheme: AppTheme
   customTheme?: string

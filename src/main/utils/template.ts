@@ -50,6 +50,7 @@ export const defaultConfig: IAppConfig = {
     'substore',
     'network'
   ],
+  lastSelectedSiderCard: 'proxy',
   siderWidth: 250,
   sysProxy: { enable: false, mode: 'manual' },
   triggerMainWindowBehavior: 'show',
