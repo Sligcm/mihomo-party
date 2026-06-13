@@ -10,6 +10,7 @@ import { mainWindow } from '../window'
 import {
   getAppConfig,
   getControledMihomoConfig,
+  getProfileItem,
   patchControledMihomoConfig,
   manageSmartOverride
 } from '../config'
@@ -26,6 +27,7 @@ import {
 import { uploadRuntimeConfig } from '../resolve/gistApi'
 import { startMonitor } from '../resolve/trafficMonitor'
 import { ensureRuntimeFiles, safeShowErrorBox } from '../utils/init'
+import { parseAgeSecretKeys } from '../utils/age'
 import i18next from '../../shared/i18n'
 import { managerLogger } from '../utils/logger'
 import { createCappedLogWritableStream } from '../utils/logFile'
@@ -147,11 +149,16 @@ interface CoreConfig {
   tunEnabled: boolean
   autoSetDNS: boolean
   cpuPriority: string
+  ageSecretKey?: string
   detached: boolean
 }
 
-function buildCoreEnv(safePath?: string): NodeJS.ProcessEnv {
+function buildCoreEnv(safePath?: string, ageSecretKey?: string): NodeJS.ProcessEnv {
   const env = { ...process.env }
+  const normalizedAgeSecretKey = parseAgeSecretKeys(ageSecretKey).join('\n')
+  if (normalizedAgeSecretKey) {
+    env.CLASH_AGE_SECRET_KEY = normalizedAgeSecretKey
+  }
   if (!safePath) return env
 
   const existingSafePaths = env.SAFE_PATHS?.split(path.delimiter).filter(Boolean) ?? []
@@ -194,7 +201,8 @@ async function prepareCore(detached: boolean, skipStop = false): Promise<CoreCon
 
   // generateProfile 返回实际使用的 current
   const current = await generateProfile()
-  await checkProfile(current, core, diffWorkDir)
+  const ageSecretKey = (await getProfileItem(current))?.ageSecretKey || ''
+  await checkProfile(current, core, diffWorkDir, ageSecretKey)
   if (!skipStop && hasCoreProcess()) {
     await stopCore()
   }
@@ -226,18 +234,19 @@ async function prepareCore(detached: boolean, skipStop = false): Promise<CoreCon
     tunEnabled: tun?.enable ?? false,
     autoSetDNS,
     cpuPriority: mihomoCpuPriority,
+    ageSecretKey,
     detached
   }
 }
 
 // 启动核心进程
 function spawnCoreProcess(config: CoreConfig): ChildProcess {
-  const { corePath, workDir, safePath, ipcPath, cpuPriority, detached } = config
+  const { corePath, workDir, safePath, ipcPath, cpuPriority, ageSecretKey, detached } = config
 
   const proc = spawn(corePath, ['-d', workDir, ctlParam, ipcPath], {
     detached,
     stdio: detached ? 'ignore' : undefined,
-    env: buildCoreEnv(safePath)
+    env: buildCoreEnv(safePath, ageSecretKey)
   })
 
   if (process.platform === 'win32' && proc.pid) {
@@ -489,18 +498,23 @@ export async function quitWithoutCore(): Promise<void> {
 async function checkProfile(
   current: string | undefined,
   core: string = 'mihomo',
-  diffWorkDir: boolean = false
+  diffWorkDir: boolean = false,
+  ageSecretKey?: string
 ): Promise<void> {
   const corePath = mihomoCorePath(core)
 
   try {
-    await execFilePromise(corePath, [
-      '-t',
-      '-f',
-      diffWorkDir ? mihomoWorkConfigPath(current) : mihomoWorkConfigPath('work'),
-      '-d',
-      mihomoTestDir()
-    ])
+    await execFilePromise(
+      corePath,
+      [
+        '-t',
+        '-f',
+        diffWorkDir ? mihomoWorkConfigPath(current) : mihomoWorkConfigPath('work'),
+        '-d',
+        mihomoTestDir()
+      ],
+      { env: buildCoreEnv(undefined, ageSecretKey) }
+    )
   } catch (error) {
     managerLogger.error('Profile check failed', error)
 

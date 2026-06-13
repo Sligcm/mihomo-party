@@ -559,6 +559,7 @@ interface IProfileItem {
   autoUpdate?: boolean
   authToken?: string
   userAgent?: string
+  ageSecretKey?: string
   updateTimeout?: number
 }
 

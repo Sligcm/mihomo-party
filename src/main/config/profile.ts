@@ -10,6 +10,7 @@ import i18next from 'i18next'
 import * as chromeRequest from '../utils/chromeRequest'
 import { parse, stringify } from '../utils/yaml'
 import { defaultProfile } from '../utils/template'
+import { decryptAgeContent } from '../utils/age'
 import { subStorePort } from '../resolve/server'
 import { mihomoCloseAllConnections, mihomoHotReloadConfig } from '../core/mihomoApi'
 import { restartCore } from '../core/manager'
@@ -256,6 +257,7 @@ interface FetchOptions {
   useProxy: boolean
   mixedPort: number
   userAgent: string
+  ageSecretKey?: string
   authToken?: string
   timeout: number
   substore: boolean
@@ -300,7 +302,8 @@ async function fetchAndValidateSubscription(options: FetchOptions): Promise<Fetc
     throw new Error(`Subscription failed: Request status code ${res.status}`)
   }
 
-  const parsed = parse(res.data) as Record<string, unknown> | null
+  const decryptedData = await decryptAgeContent(res.data, options.ageSecretKey, 'subscription')
+  const parsed = parse(decryptedData) as Record<string, unknown> | null
   if (typeof parsed !== 'object' || parsed === null) {
     throw new Error('Subscription failed: Profile is not a valid YAML')
   }
@@ -326,6 +329,7 @@ export async function createProfile(item: Partial<IProfileItem>): Promise<IProfi
     autoUpdate: item.autoUpdate ?? false,
     authToken: item.authToken,
     userAgent: item.userAgent,
+    ageSecretKey: item.ageSecretKey,
     updated: new Date().getTime(),
     updateTimeout: item.updateTimeout
   }
@@ -356,6 +360,7 @@ export async function createProfile(item: Partial<IProfileItem>): Promise<IProfi
       url: profileUrl,
       mixedPort,
       userAgent: item.userAgent || userAgent || `mihomo.party/v${app.getVersion()} (clash.meta)`,
+      ageSecretKey: newItem.ageSecretKey,
       authToken: item.authToken,
       substore: newItem.substore || false
     }
@@ -440,7 +445,12 @@ export async function setProfileStr(id: string, content: string): Promise<void> 
 }
 
 export async function getProfile(id: string | undefined): Promise<IMihomoConfig> {
-  const profile = await getProfileStr(id)
+  const item = await getProfileItem(id)
+  const profile = await decryptAgeContent(
+    await getProfileStr(id),
+    item?.ageSecretKey,
+    `profile "${id || 'default'}"`
+  )
 
   // 检测是否为 HTML 内容（订阅返回错误页面）
   const trimmed = profile.trim()
